@@ -1,0 +1,66 @@
+version: "3"
+
+services:
+    elasticsearch:
+        container_name: elasticsearch
+        image: elastic/elasticsearch:7.5.2
+        ports:
+            - "9200:9200"
+            - "9300:9300"
+        environment:
+            - "discovery.type=single-node"
+        networks:
+            - base-laravel
+        volumes:
+            - ./.data/elasticsearch:/usr/share/elasticsearch/data
+
+    kibana:
+        container_name: kibana
+        image: elastic/kibana:7.5.2
+        ports:
+            - "5601:5601"
+        environment:
+            - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+        links:
+            - elasticsearch
+        depends_on:
+            - elasticsearch
+        networks:
+            - base-laravel
+        volumes:
+            - ./.data/kibana/data:/var/lib/kibana
+
+    logstash:
+        container_name: logstash
+        image: elastic/logstash:7.5.2
+        links:
+            - elasticsearch
+        ports:
+            - 9600:9600
+        environment:
+            - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+        volumes:
+            - ./kibana/logstash:/config-dir
+        command: logstash -f /config-dir/logstash.conf
+        depends_on:
+            - elasticsearch
+        networks:
+            - base-laravel
+
+    filebeat:
+        container_name: filebeat
+        image: prima/filebeat
+        command: filebeat -e -strict.perms=false
+        volumes:
+            - ./storage/logs/:/var/log/storage/
+            - ./kibana/filebeat/filebeat.yml:/filebeat.yml
+            - ./.data/nginx:/var/log/nginx/
+        depends_on:
+            - logstash
+        networks:
+            - base-laravel
+
+networks:
+    base-laravel:
+        external:
+            name: base-laravel

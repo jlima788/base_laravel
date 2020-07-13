@@ -1,0 +1,64 @@
+# docker stack deploy --compose-file ./docker-compose.swarm.yaml baseLaravel
+
+version: "3.5"
+
+services:
+    redis:
+        image: redis:alpine
+        ports:
+            - 6379
+        networks:
+            - backend
+        deploy:
+            replicas: 1
+            update_config:
+                parallelism: 2
+                delay: 10s
+            restart_policy:
+                condition: on-failure
+
+    db:
+        image: mysql:5.7
+        environment:
+            - MYSQL_USER=root
+            - MYSQL_PASSWORD=root
+            - MYSQL_ROOT_PASSWORD=root
+            - MYSQL_DATABASE=development
+        volumes:
+            - db-data-mysql:/var/lib/mysql/
+        networks:
+            - backend
+
+
+    app:
+        image: bhcosta90/base-laravel:latest
+        ports:
+            - 80:80
+        networks:
+            - backend
+        depends_on:
+            - redis
+        deploy:
+            replicas: 1
+            update_config:
+                parallelism: 2
+            restart_policy:
+                condition: on-failure
+
+    visualizer:
+        image: dockersamples/visualizer:stable
+        ports:
+            - "8080:8080"
+        stop_grace_period: 1m30s
+        volumes:
+            - "/var/run/docker.sock:/var/run/docker.sock"
+        deploy:
+            placement:
+                constraints: [node.role == manager]
+
+
+networks:
+    backend:
+
+volumes:
+    db-data-mysql:

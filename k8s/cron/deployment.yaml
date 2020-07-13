@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: cron
+
+spec:
+    selector:
+        matchLabels:
+            app: cron
+    template:
+        metadata:
+            labels:
+                app: cron
+        spec:
+            containers:
+                -   name: cron
+                    image: bhcosta90/dockerfile-cron
+                    command:
+                      [
+                          "/bin/sh",
+                          "-c",
+                          "supervisord -c /etc/supervisord.conf",
+                      ]
+                    env:
+                        -   name: DB_PASSWORD
+                            valueFrom:
+                                secretKeyRef:
+                                    name: mysql-pass
+                                    key: password
+
+                    envFrom:
+                        -   configMapRef:
+                                name: app-conf
+
+                    volumeMounts:
+                        -   name: app-conf
+                            mountPath: /var/www/.env
+                            subPath: .env
+
+            volumes:
+                -   name: app-conf
+                    configMap:
+                        name: app-conf
+                        items:
+                            -   key: env
+                                path: .env

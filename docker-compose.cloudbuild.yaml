@@ -1,0 +1,12 @@
+version: "3.5"
+
+services:
+    app:
+        container_name: app
+        restart: always
+        build: ./docker/app
+        volumes:
+            - ./:/var/www/html/
+            - ./.data/nginx:/var/log/nginx
+        ports:
+            - 8000:80

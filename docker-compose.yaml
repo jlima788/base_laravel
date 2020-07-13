@@ -1,0 +1,51 @@
+version: "3.5"
+
+services:
+    redis:
+        restart: always
+        image: redis:alpine
+        ports:
+            - 6379
+
+    db:
+        restart: always
+        image: mysql:8.0
+        command: --innodb-use-native-aio=0
+        tty: true
+        ports:
+            - "3307:3306"
+        environment:
+            - MYSQL_USER=root
+            - MYSQL_PASSWORD=root
+            - MYSQL_ROOT_PASSWORD=root
+            - MYSQL_DATABASE=development
+        volumes:
+            - ./.data/dbdata/:/var/lib/mysql/
+
+    app:
+        restart: always
+        entrypoint: dockerize -wait tcp://db:3306 -timeout 30s docker/entrypoint.sh
+        build:
+            context: docker
+            dockerfile: Dockerfile
+            args:
+                IMAGE: ${IMAGE_PHP}
+        volumes:
+            - ./:/var/www/html/
+            - ./.data/nginx:/var/log/nginx
+        ports:
+            - 8000:80
+
+    cron:
+        restart: always
+        entrypoint: dockerize -wait tcp://app:80 -timeout 3000s docker/entrypoint.sh
+        build:
+            context: docker
+            dockerfile: Dockerfile
+            args:
+                IMAGE: ${IMAGE_CRON}
+        volumes:
+            - ./:/var/www/html/
+            - ./docker/supervisor:/etc/supervisor/conf.d/
+        links:
+            - app

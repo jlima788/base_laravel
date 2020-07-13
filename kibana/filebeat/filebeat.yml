@@ -1,0 +1,23 @@
+filebeat:
+  prospectors:
+    - paths:
+        - /var/log/nginx/error.log
+      input_type: log
+      document_type: nginx_error
+      scan_frequency: 10s
+      tags: ["nginx-error-log"]
+    - paths:
+        - /var/log/storage/*.log
+      input_type: log
+      document_type: storage
+      scan_frequency: 10s
+      tags: ["laravel-storage"]
+output:
+  logstash:
+    hosts: ["logstash:5044"]
+
+logging:
+  files:
+    rotateeverybytes: 10485760 # = 10MB
+  selectors: ["*"]
+  level: warning

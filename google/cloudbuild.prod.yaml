@@ -1,0 +1,88 @@
+steps:
+    -   id: "Rodando docker-compose"
+        name: "gcr.io/$PROJECT_ID/docker-compose:1.24.0"
+        args: ["-f", "docker-compose.cloudbuild.yaml", "up", "-d", "app"]
+
+    -   id: "Copiando .env"
+        name: "gcr.io/cloud-builders/docker"
+        args: ["exec", "-t", "app", "cp", ".env.example", ".env"]
+
+    -   id: "Rodando composer install"
+        name: "gcr.io/cloud-builders/docker"
+        args: ["exec", "-t", "app", "composer", "install"]
+
+    -   id: "Rodando key generate"
+        name: "gcr.io/cloud-builders/docker"
+        args: ["exec", "-t", "app", "php", "/var/www/html/artisan", "key:generate"]
+
+    -   id: "Rodando php unit"
+        name: "gcr.io/cloud-builders/docker"
+        args:
+          [
+              "exec",
+              "-t",
+              "app",
+              "php",
+              "/var/www/html/vendor/phpunit",
+              "-c",
+              "/var/www/html/phpunit.xml",
+          ]
+
+    -   id: "Building image from app - Dockerfile.prod"
+        name: "gcr.io/cloud-builders/docker"
+        args:
+          [
+              "build",
+              "-t",
+              "gcr.io/$PROJECT_ID/laravel-app:$SHORT_SHA",
+              "-f",
+              "./docker/app/Dockerfile.prod",
+              ".",
+          ]
+    -   id: "Building image from cron - Dockerfile"
+        name: "gcr.io/cloud-builders/docker"
+        args:
+          [
+              "build",
+              "-t",
+              "gcr.io/$PROJECT_ID/laravel-cron:$SHORT_SHA",
+              "-f",
+              "./docker/cron/Dockerfile",
+              ".",
+          ]
+
+    -   id: "Pushing app image"
+        name: "gcr.io/cloud-builders/docker"
+        args: ["push", "gcr.io/$PROJECT_ID/laravel-app:$SHORT_SHA"]
+
+    -   id: "Pushing cron image"
+        name: "gcr.io/cloud-builders/docker"
+        args: ["push", "gcr.io/$PROJECT_ID/laravel-cron:$SHORT_SHA"]
+
+    -   id: "Adjusting deployment app file - k8s"
+        name: "gcr.io/cloud-builders/gcloud"
+        entrypoint: "/bin/sh"
+        args:
+            - "-c"
+            - |
+                sed 's#bhcosta90/dockerfile-app#gcr.io/$PROJECT_ID/app-laravel:$SHORT_SHA#g' k8s/app/deployment.yaml > k8s/app/deployments-new.yaml;
+                cat k8s/app/deployments-new.yaml;
+
+    -   id: "Adjusting deployment cron file - k8s"
+        name: "gcr.io/cloud-builders/gcloud"
+        entrypoint: "/bin/sh"
+        args:
+            - "-c"
+            - |
+                sed 's#bhcosta90/dockerfile-cron#gcr.io/$PROJECT_ID/cron-laravel:$SHORT_SHA#g' k8s/cron/deployment.yaml > k8s/cron/deployments-new.yaml;
+                cat k8s/cron/deployments-new.yaml;
+
+    # - id: "Deploy in kubernestes"
+    #   name: "gcr.io/cloud-builders/kubectl"
+    #   args:
+    #       - "apply"
+    #       - "-f"
+    #       - "k8s/app/deployments-new.yaml"
+    #   env:
+    #       - "CLOUDSDK_COMPUTE_ZONE=us-central1-a"
+    #       - "CLOUDSDK_CONTAINER_CLUSTER=cluster-docker-laravel"

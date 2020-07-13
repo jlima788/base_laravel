@@ -1,0 +1,25 @@
+@import "../../plugins/jquery-ui/themes/smoothness/jquery-ui.css";
+@import "../../../../node_modules/sweetalert2/dist/sweetalert2.min.css";
+
+.table {
+    &.table-list-default {
+        th {
+            border-top: 0;
+            padding-top: 0;
+        }
+    }
+
+    td.action-edit, td.action-delete {
+        width: 1px;
+    }
+}
+
+.link-add {
+    font-size: 0.95em;
+}
+
+.ui-autocomplete-pagination-results {
+    .ui-autocomplete {
+        padding-top: 35px;
+    }
+}
